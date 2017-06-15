@@ -100,7 +100,7 @@ var setHeader = function(res, filename)
 
 var runPendingFunctions = function(filename)
 {
-	if (uploading[filename].pendingFunctions.length > 0)
+	if (uploading[filename] && uploading[filename].pendingFunctions.length > 0)
 	{
 		uploading[filename].pendingFunctions.pop()();
 	}
