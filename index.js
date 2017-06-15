@@ -8,7 +8,7 @@ var send = require('send');
 
 var dir = __dirname + '/files/';
 
-var MINIMUM_READ_BUFFER = 1000000;
+var MINIMUM_READ_BUFFER_BYTES = 1000000;
 
 app.use(busboy());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -44,7 +44,6 @@ app.route('/upload').post(function (req, res, next) {
 					});
 					uploading[filename].complete = true;
 					runPending(filename);
-					delete uploading[filename];
 				});
 				file.pipe(fstream);
 			} catch (e) {
@@ -93,57 +92,47 @@ var setHeader = function(res, filename)
 
 var runPending = function(filename)
 {
-	var toRun = uploading[filename].pending.length;
-	while (toRun > 0)
+	if (uploading[filename] && uploading[filename].pending.length > 0)
 	{
 		uploading[filename].pending.pop()();
-		toRun--;
 	}
 };
 
 var sendFunc = function(filename, sent, res)
 {
-	var uploaded = false;
-	var complete = false;
-	if (uploading[filename])
+	var uploaded = uploading[filename].uploaded;
+	var complete = uploading[filename].complete;
+	if (complete || uploaded - sent >= MINIMUM_READ_BUFFER_BYTES)
 	{
-		uploaded = uploading[filename].uploaded;
-		complete = uploading[filename].complete;
-	}
-	if (!uploaded || complete || uploaded - sent > MINIMUM_READ_BUFFER)
-	{
-		var options = { start: sent };
-		if (uploaded)
-		{
-			options.end = uploaded;
-		}
-		var stream = fs.createReadStream(dir + filename, options);
+		var stream = fs.createReadStream(dir + filename, { start: sent, end: uploaded });
 		stream.on('data', function(chunk)
 		{
 			sent += chunk.length;
 		});
 		stream.on('end', function()
 		{
-			if (!complete && uploading[filename])
+			if (!complete)
 			{
 				uploading[filename].pending.push(function()
 				{
 					sendFunc(filename, sent, res);
 				});
 			}
-			else if (!complete)
-			{
-				sendFunc(filename, sent, res);
-			}
 			else
 			{
+				if (uploading[filename].pending.length == 0)
+				{
+					delete uploading[filename];
+				}
 				res.end();
 			}
+			runPending(filename);
 		});
 		stream.pipe(res, {end: false});
 	}
 	else
 	{
+		runPending(filename);
 		uploading[filename].pending.push(function()
 		{
 			sendFunc(filename, sent, res);
