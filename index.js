@@ -9,6 +9,7 @@ var send = require('send');
 var dir = __dirname + '/files/';
 
 var MINIMUM_READ_BUFFER_BYTES = 1000000;
+var WRITE_TIMEOUT_MS = 5000;
 
 app.use(busboy());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -18,6 +19,13 @@ var uploading = {};
 try {
 	fs.mkdirSync(dir);
 } catch (e) { }
+
+setInterval(function() {
+	for (var key in uploading)
+	{
+		runPendingFunctions(key);
+	}
+}, WRITE_TIMEOUT_MS);
 
 app.route('/upload').post(function (req, res, next) {
 	req.pipe(req.busboy);
@@ -33,7 +41,7 @@ app.route('/upload').post(function (req, res, next) {
 				var fstream = fs.createWriteStream(dir + filename);
 				file.on('data', function(chunk) {
 					uploading[filename].uploaded += chunk.length;
-					runPendingFunctions(filename);
+					//runPendingFunctions(filename);
 				});
 				file.on('end', function () { 
 					console.log("Upload Finished: " + filename);
@@ -43,7 +51,7 @@ app.route('/upload').post(function (req, res, next) {
     					url: "/download/" + filename
 					});
 					uploading[filename].complete = true;
-					runPendingFunctions(filename);
+					runPendingFunctions(filename); //run this explicitly for faster performance (not strictly required)
 				});
 				file.pipe(fstream);
 			} catch (e) {
@@ -92,7 +100,7 @@ var setHeader = function(res, filename)
 
 var runPendingFunctions = function(filename)
 {
-	if (uploading[filename] && uploading[filename].pendingFunctions.length > 0)
+	if (uploading[filename].pendingFunctions.length > 0)
 	{
 		uploading[filename].pendingFunctions.pop()();
 	}
@@ -117,16 +125,21 @@ var sendFunc = function(filename, sent, res)
 				{
 					sendFunc(filename, sent, res);
 				});
+				runPendingFunctions(filename);
 			}
 			else
 			{
+				console.log("Streaming back finished: " + filename);
+				res.end();
 				if (uploading[filename].pendingFunctions.length == 0)
 				{
 					delete uploading[filename];
 				}
-				res.end();
+				else
+				{
+					runPendingFunctions(filename);
+				}
 			}
-			runPendingFunctions(filename);
 		});
 		stream.pipe(res, {end: false});
 	}
