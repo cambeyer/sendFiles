@@ -31,22 +31,21 @@
             }
         ])
         
-        .run(['$rootScope', '$interval',
-            function ($rootScope, $interval) {
+        .run(['$rootScope',
+            function ($rootScope) {
                 /*global io*/
                 $rootScope.socket = io();
-
             }
         ])
 
         .controller('DemoFileUploadController', [
             '$scope', '$http', '$filter', '$window', '$rootScope',
-            function ($scope, $rootScope) {
+            function ($scope) {
                 $scope.options = {
                     url: url
                 };
                 $scope.loadingFiles = false;
-                $scope.queue = $rootScope.queue;
+                $scope.queue = [];
             }
         ]);
 
