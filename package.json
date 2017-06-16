@@ -3,8 +3,10 @@
   "version": "0.0.1",
   "description": "sendFiles Server",
   "dependencies": {
+    "auto-sni": "^2.2.1",
     "connect-busboy": "^0.0.2",
     "express": "^4.14.0",
+    "graceful-fs": "^4.1.11",
     "path": "^0.12.7",
     "request": "^2.72.0",
     "send": "^0.15.3"

@@ -1,9 +1,24 @@
+var DOMAIN_NAME = "cbvid.com";
+
 var express = require('express');
 var app = express();
 var fs = require('fs');
+var gracefulFs = require('graceful-fs');
+gracefulFs.gracefulify(fs);
 var busboy = require('connect-busboy');
 var path = require('path');
-var http = require('http').Server(app);
+//var http = require('http').Server(app);
+var http = require("auto-sni")({
+    email: "cam.beyer@gmail.com",
+    agreeTos: true,
+    debug: false,
+    domains: [DOMAIN_NAME],
+    ports: {
+    	http: 8079,
+        https: 8080
+    }
+}, app);
+
 var send = require('send');
 
 var dir = __dirname + '/files/';
@@ -153,6 +168,12 @@ var sendFunc = function(filename, sent, res)
 	}
 };
 
+http.once("listening", ()=> {
+	console.log('listening on *:' + http.address().port);
+});
+
+/*
 http.listen(process.env.PORT, "0.0.0.0", function (){
 	console.log('listening on *:' + process.env.PORT);
 });
+*/
