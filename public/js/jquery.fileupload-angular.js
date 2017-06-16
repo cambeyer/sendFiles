@@ -198,8 +198,8 @@
         // The FileUploadController initializes the fileupload widget and
         // provides scope methods to control the File Upload functionality:
         .controller('FileUploadController', [
-            '$scope', '$element', '$attrs', '$window', 'fileUpload','$q',
-            function ($scope, $element, $attrs, $window, fileUpload, $q) {
+            '$scope', '$element', '$attrs', '$window', 'fileUpload','$q', '$rootScope',
+            function ($scope, $element, $attrs, $window, fileUpload, $q, $rootScope) {
                 var uploadMethods = {
                     progress: function () {
                         return $element.fileupload('progress');
@@ -227,6 +227,21 @@
                     }
                 };
                 $scope.disabled = !$window.jQuery.support.fileInput;
+                $rootScope.socket.on('link', function(pair)
+                {
+                    $rootScope.$apply(function () {
+                        for (var key in pair)
+                        {
+                            for (var i = 0; i < $scope.queue.length; i++)
+                            {
+                                if ($scope.queue[i].name == key)
+                                {
+                                    $scope.queue[i].url = pair[key];
+                                }
+                            }
+                        }
+                    });
+                });
                 $scope.queue = $scope.queue || [];
                 $scope.clear = function (files) {
                     var queue = this.queue,

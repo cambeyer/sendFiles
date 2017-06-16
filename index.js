@@ -18,6 +18,7 @@ var http = require("auto-sni")({
         https: 8080
     }
 }, app);
+var io = require('socket.io')(http);
 
 var send = require('send');
 
@@ -49,7 +50,10 @@ app.route('/upload').post(function (req, res, next) {
 	req.busboy.on('file', function (field, file, filename) {
 		if (filename) {
 			tempFilename = filename;
-			filename = Date.now() + ".file";
+			filename = Date.now();
+			var downloadLink = "/download/" + filename + "/" + tempFilename;
+			var pair = {};
+			pair[tempFilename] = downloadLink;
 			uploading[filename] = { uploaded: 0, pendingFunctions: [], complete: false };
 			try { 
 				console.log("Uploading: " + filename);
@@ -63,11 +67,14 @@ app.route('/upload').post(function (req, res, next) {
 					files.files.push({
 						name: tempFilename,
     					size: uploading[filename].uploaded,
-    					url: "/download/" + filename
+    					url: downloadLink
 					});
 					uploading[filename].complete = true;
 					runPendingFunctions(filename); //run this explicitly for faster performance (not strictly required)
 				});
+				file.once('readable', function() {
+					io.emit('link', pair);
+				})
 				file.pipe(fstream);
 			} catch (e) {
 				console.log("Error during upload");
@@ -83,15 +90,16 @@ app.route('/upload').post(function (req, res, next) {
 	});
 });
 
-app.get('/download/:file', function(req, res){
+app.get('/download/:file/:name', function(req, res){
 	try {
 		var filename = req.params.file;
+		var realname = req.params.name;
 		if (filename) {
 			console.log("Downloading: " + filename);
-			if (uploading[filename])
+			if (uploading[filename] && !uploading[filename].complete)
 			{
 				console.log("File is currently being uploaded; streaming back");
-				setHeader(res, filename);
+				setHeader(res, realname);
 				sendFunc(filename, 0, res);
 			}
 			else
@@ -99,7 +107,7 @@ app.get('/download/:file', function(req, res){
 				console.log("Already have entire file; downloading directly");
 				send(req, path.resolve(dir, filename), {maxAge: '10h'})
 					.on('headers', function(res) {
-						setHeader(res, filename);
+						setHeader(res, realname);
 					})
 					.on('end', function() {})
 					.pipe(res);

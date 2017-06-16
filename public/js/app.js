@@ -30,15 +30,23 @@
                 );
             }
         ])
+        
+        .run(['$rootScope', '$interval',
+            function ($rootScope, $interval) {
+                /*global io*/
+                $rootScope.socket = io();
+
+            }
+        ])
 
         .controller('DemoFileUploadController', [
-            '$scope', '$http', '$filter', '$window',
-            function ($scope) {
+            '$scope', '$http', '$filter', '$window', '$rootScope',
+            function ($scope, $rootScope) {
                 $scope.options = {
                     url: url
                 };
                 $scope.loadingFiles = false;
-                $scope.queue = [];
+                $scope.queue = $rootScope.queue;
             }
         ]);
 
