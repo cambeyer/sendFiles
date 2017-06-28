@@ -64,7 +64,6 @@ app.route('/upload').post(function (req, res, next) {
 				});
 				file.on('end', function () { 
 					console.log("Upload Finished: " + filename);
-					console.log(uploading[filename].uploaded + " " + uploading[filename].total);
 					files.files.push({
 						name: tempFilename,
     					size: uploading[filename].uploaded,
