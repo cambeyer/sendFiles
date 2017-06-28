@@ -506,6 +506,7 @@
                         });
                     }
                 }
+                options.headers['File-Size'] = file.size;
                 options.data = formData;
             }
             // Blob reference is not needed anymore, free memory:

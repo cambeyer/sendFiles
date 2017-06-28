@@ -27,8 +27,8 @@ var dir = __dirname + '/files/';
 var MINIMUM_READ_BUFFER_BYTES = 1000000;
 var WRITE_TIMEOUT_MS = 5000;
 
-app.use(busboy());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(busboy());
 
 var uploading = {};
 
@@ -54,7 +54,7 @@ app.route('/upload').post(function (req, res, next) {
 			var downloadLink = "/download/" + filename + "/" + tempFilename;
 			var pair = {};
 			pair[tempFilename] = downloadLink;
-			uploading[filename] = { uploaded: 0, pendingFunctions: [], complete: false };
+			uploading[filename] = { uploaded: 0, pendingFunctions: [], complete: false, total: req.headers['file-size'] };
 			try { 
 				console.log("Uploading: " + filename);
 				var fstream = fs.createWriteStream(dir + filename);
@@ -64,6 +64,7 @@ app.route('/upload').post(function (req, res, next) {
 				});
 				file.on('end', function () { 
 					console.log("Upload Finished: " + filename);
+					console.log(uploading[filename].uploaded + " " + uploading[filename].total);
 					files.files.push({
 						name: tempFilename,
     					size: uploading[filename].uploaded,
@@ -74,7 +75,7 @@ app.route('/upload').post(function (req, res, next) {
 				});
 				file.once('readable', function() {
 					io.emit('link', pair);
-				})
+				});
 				file.pipe(fstream);
 			} catch (e) {
 				console.log("Error during upload");
@@ -99,7 +100,7 @@ app.get('/download/:file/:name', function(req, res){
 			if (uploading[filename] && !uploading[filename].complete)
 			{
 				console.log("File is currently being uploaded; streaming back");
-				setHeader(res, realname);
+				setHeader(res, realname, uploading[filename].total);
 				sendFunc(filename, 0, res);
 			}
 			else
@@ -116,9 +117,13 @@ app.get('/download/:file/:name', function(req, res){
 	} catch (e) { console.log(e); res.redirect('back'); }
 });
 
-var setHeader = function(res, filename)
+var setHeader = function(res, filename, size)
 {
 	res.setHeader('Content-disposition', 'attachment; filename=' + filename);
+	if (size)
+	{
+		res.setHeader('Content-Length', size);
+	}
 };
 
 var runPendingFunctions = function(filename)
